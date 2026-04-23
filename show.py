@@ -63,7 +63,7 @@ def normalize(image, stride, w, h):
 
     return res
 
-RATION = 3
+RATIO = 3
 PROGRAM_HEADER = """ 
 
 ------------------------------------------------------------------
@@ -113,8 +113,8 @@ while True:
             with Image.open(filename) as img: 
 
                 terminal_w = os.get_terminal_size().columns 
-                terminal_w -= terminal_w%RATION
-                terminal_w //= RATION
+                terminal_w -= terminal_w%RATIO
+                terminal_w //= RATIO
 
                 img = img.convert("RGB")
                 w, h = img.size 
@@ -126,14 +126,14 @@ while True:
                     for row in img: 
                         t = ""
                         for val in row: 
-                            t += RATION*to_Char(val)
+                            t += RATIO*to_Char(val)
                         print(t)
                 else: 
                     for i in range(h): 
                         t = ""
                         for j in range(w): 
                             c = to_char(*img.getpixel((j,i)))
-                            t += RATION*c
+                            t += RATIO*c
                         print(t)
 
         except Exception as e: 
