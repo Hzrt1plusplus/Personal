@@ -7,20 +7,18 @@ import colorama
 from io import BytesIO
 import requests
 
-
-colors = {
-    "red" : colorama.Fore.RED, 
-    "blue" : colorama.Fore.BLUE, 
-    "yellow" : colorama.Fore.YELLOW, 
-    "green" : colorama.Fore.GREEN,
-    "cyan" : colorama.Fore.CYAN
+alphabets = {
+    "dark" : [" ", " ", " ", " ", "_", "^", "*","~",":","!","/", "[", "T", "&", "#", "$", "@"], 
+    "normal":  [" ", ".", "-", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "T", "&","$","#","@", "@", "@", "@"], 
+    "light" : [".", "-", "_", "0", "1", "2", "3", "T", "J", "@", "@", "@", "#", "#", "#", "#", "#", "&", "&", "&"]
 }
 
-
-#alphabet = [" ", "-", "_", "~", "^","*","T", "%", "#", "@"]
-alphabet = [" ", ".","-", "_", "~", "^","*","/","[","]","T", "%", "#", "@"]
+alphabet = alphabets["normal"]
 SIZE = len(alphabet)
-COLORIZE = False
+coloring = True
+
+def toColor(r , g, b): 
+    return f"\x1b[38;2;{r};{g};{b}m"
 
 def to_char(r, g, b): 
     l = (r + g + b) / 765
@@ -33,35 +31,35 @@ def to_Char(l):
 
 
 def normalize(image, stride, w, h): 
-   
+
+    w -= w % stride
+    h -= h % stride
+
+    horizontal = w // stride
+    vertical = h // stride
     buffer = np.array(image, dtype = np.float64)
-    buffer = buffer.mean(axis = 2)
-
+    colors = []
+    img = []
     
-    if w%stride != 0: 
-        tmp  = []
-        pad = np.array([0 for i in range(stride - (w%stride))])
-        for i in range(h): 
-            tmp.append(np.append(buffer[i], pad))
-        buffer = np.array(tmp)
+    # extract colors and brightness of pixels
+    for i in range(vertical): 
+        offset1 = i * stride 
+        color_buffer = []
+        image_buffer = [] 
+        for j in range(horizontal): 
+            offset2 = j * stride
+            b = np.array([0., 0., 0.])
+            for z in range(stride): 
+                b += np.sum(buffer[offset1 + z][offset2:offset2 + stride], axis = 0)
+            b /= (stride * stride)
+            image_buffer.append(int(b.mean()))
+            b = b.astype(int)
+            color_buffer.append(toColor(*b))
 
-    h -= h%stride
-    n = h // stride
-    m = w // stride
-    
-    res = []
-    for  i in range(n): 
-        t = []
-        offset1 = stride*i
-        for j in range(m): 
-            b = 0.
-            offset2 = stride*j
-            for z in range(stride):
-                b += np.mean(buffer[offset1 + z][offset2:offset2 + stride])
-            t.append(b/stride)
-        res.append(t)
+        img.append(image_buffer)
+        colors.append(color_buffer)
 
-    return res
+    return img, colors
 
 RATIO = 3
 PROGRAM_HEADER = """ 
@@ -72,36 +70,51 @@ PROGRAM_HEADER = """
 
 Commands: 
 
-    color <colornames>      available colors: red, blue, yellow, green, cyan
+    color <on/off>          turn on/off coloring
+    mode <modename>         available modes: normal, light, dark
     filename                file at the current folder
     link                    valid image link from internet 
     exit                    for quitting
+    help                    for info
 
 ------------------------------------------------------------------
 
 """
 
+print(colorama.Style.BRIGHT)
 print(PROGRAM_HEADER)
-currentColor = colorama.Fore.WHITE
 while True: 
 
+    print(colorama.Fore.RESET)
     userInput = input("Please enter a command or a filename(or link of image): ")
     userInput = [i.lower() for i in userInput.split()]
     size = len(userInput)
 
     if size == 0: continue
     elif size == 2 and userInput[0] == "color":
-        if userInput[1] in colors: 
-            currentColor = colors[userInput[1]]
-            print(currentColor)
+        if userInput[1] == "on": 
+            coloring = True
+        elif userInput[1] == "off": 
+            coloring = False
         else: 
-            print(colorama.Style.BRIGHT,colorama.Fore.RED,"Error! No such color!",colorama.Fore.RESET,sep="")
+            print(colorama.Style.BRIGHT,colorama.Fore.RED,"Error! No such option!",colorama.Fore.RESET,sep="")
 
+    elif size == 2 and userInput[0] == "mode": 
+        if userInput[1] in alphabets: 
+            alphabet = alphabets[userInput[1]]
+            SIZE = len(alphabet)
+        else: 
+            print(colorama.Style.BRIGHT, colorama.Fore.RED, "Error! No such mode!", colorama.Fore.RESET, sep = "")
     
     elif size == 1: 
 
+        #breakpoint()
+
         filename = userInput[0]
         if filename == "": continue
+        if filename == "help": 
+            print(PROGRAM_HEADER)
+            continue
         elif filename == "exit": break 
 
         try: 
@@ -120,21 +133,20 @@ while True:
                 w, h = img.size 
 
                 STRIDE = (w // terminal_w) + bool(w % terminal_w)
-
-                if STRIDE > 1:
-                    img = normalize(img, STRIDE, w, h)
-                    for row in img: 
-                        t = ""
-                        for val in row: 
-                            t += RATIO*to_Char(val)
-                        print(t)
-                else: 
-                    for i in range(h): 
-                        t = ""
-                        for j in range(w): 
-                            c = to_char(*img.getpixel((j,i)))
-                            t += RATIO*c
-                        print(t)
+               
+                img, colors = normalize(img, STRIDE, w, h)
+                vert = (h - h%STRIDE) // STRIDE
+                horz = (w - w%STRIDE) // STRIDE
+                for i in range(vert): 
+                    t = ""
+                    if coloring:
+                        for j in range(horz): 
+                            t += colors[i][j]
+                            t += RATIO*to_Char(img[i][j])    
+                    else: 
+                        for j in range(horz): 
+                            t += RATIO*to_Char(img[i][j])
+                    print(t)
 
         except Exception as e: 
 
@@ -142,3 +154,6 @@ while True:
     
     else: 
         print(colorama.Style.BRIGHT,colorama.Fore.RED,"Error! No such command!",colorama.Fore.RESET,sep="")
+
+
+print(colorama.Fore.RESET)
