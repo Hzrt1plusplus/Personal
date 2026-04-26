@@ -70,12 +70,13 @@ PROGRAM_HEADER = """
 
 Commands: 
 
-    color <on/off>          turn on/off coloring
-    mode <modename>         available modes: normal, light, dark
-    filename                file at the current folder
-    link                    valid image link from internet 
-    exit                    for quitting
-    help                    for info
+    color <on/off>                  turn on/off coloring
+    mode <modename>                 available modes: normal, light, dark
+    add "<alphabet>" as <name>      add a new alphabet to alphabets(a.k.a modes). do not forget adding "" to start and end
+    filename                        file at the current folder
+    link                            valid image link from internet 
+    exit                            for quitting
+    help                            for info
 
 ------------------------------------------------------------------
 
@@ -87,10 +88,29 @@ while True:
 
     print(colorama.Fore.RESET)
     userInput = input("Please enter a command or a filename(or link of image): ")
+    userInpTmp = userInput
     userInput = [i.lower() for i in userInput.split()]
     size = len(userInput)
 
+
     if size == 0: continue
+
+    elif userInput[0] == "add" and "as" in userInput: 
+        idx = userInpTmp.find('"')
+        if idx == -1: 
+            print(colorama.Style.BRIGHT,colorama.Fore.RED,"Error!! Invalid alphabet!",colorama.Fore.RESET,sep="")
+            continue
+        idx2 = userInpTmp[idx + 1:].find('"')
+        if idx2 == -1:
+            print(colorama.Style.BRIGHT,colorama.Fore.RED,"Error!! Invalid alphabet!",colorama.Fore.RESET,sep="")
+            continue
+        idx2 = idx2 + idx + 1
+
+        new_alp = userInpTmp[idx + 1 : idx2]
+        alphabetName = userInpTmp[userInpTmp.find("as") + 3:].strip()
+        alphabets[alphabetName] = new_alp
+        print(colorama.Fore.CYAN,"New alp '",new_alp,"' is added!", colorama.Fore.RESET,sep = "")
+
     elif size == 2 and userInput[0] == "color":
         if userInput[1] == "on": 
             coloring = True
@@ -104,11 +124,12 @@ while True:
             alphabet = alphabets[userInput[1]]
             SIZE = len(alphabet)
         else: 
+
             print(colorama.Style.BRIGHT, colorama.Fore.RED, "Error! No such mode!", colorama.Fore.RESET, sep = "")
     
+
     elif size == 1: 
 
-        #breakpoint()
 
         filename = userInput[0]
         if filename == "": continue
